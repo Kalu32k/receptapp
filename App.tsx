@@ -1,20 +1,71 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import HomeScreen from './src/screens/HomeScreen';
+import { ActivityIndicator, View } from 'react-native';
+import { initializeDatabase } from './src/database/db';
+import { seedDatabase } from './src/database/seed';
+import RecipeListScreen from './src/screens/RecipeListScreen';
+import RecipeDetailScreen from './src/screens/RecipeDetailScreen';
+import { COLORS } from './src/theme/constants';
 
-const Stack = createNativeStackNavigator();
+type RootStackParamList = {
+  Home: undefined;
+  RecipeDetail: { recipeId: string };
+};
+
+const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function App() {
+  const [isReady, setIsReady] = useState(false);
+
+  useEffect(() => {
+    const initApp = async () => {
+      try {
+        // Initialize database
+        await initializeDatabase();
+        
+        // Seed database with mock data (only if empty)
+        await seedDatabase();
+        
+        setIsReady(true);
+      } catch (error) {
+        console.error('Error initializing app:', error);
+        setIsReady(true); // Still set ready to show UI
+      }
+    };
+
+    initApp();
+  }, []);
+
+  if (!isReady) {
+    return (
+      <SafeAreaProvider>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background }}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+        </View>
+      </SafeAreaProvider>
+    );
+  }
+
   return (
     <SafeAreaProvider>
       <NavigationContainer>
-        <Stack.Navigator>
+        <Stack.Navigator
+          screenOptions={{
+            headerShown: false,
+            animationEnabled: true,
+          }}
+        >
           <Stack.Screen 
             name="Home" 
-            component={HomeScreen}
+            component={RecipeListScreen}
             options={{ title: 'ReceptApp' }}
+          />
+          <Stack.Screen 
+            name="RecipeDetail" 
+            component={RecipeDetailScreen}
+            options={{ title: 'Recept' }}
           />
         </Stack.Navigator>
       </NavigationContainer>
