@@ -7,11 +7,13 @@ import { initializeDatabase } from './src/database/db';
 import { seedDatabase } from './src/database/seed';
 import RecipeListScreen from './src/screens/RecipeListScreen';
 import RecipeDetailScreen from './src/screens/RecipeDetailScreen';
+import AddRecipeScreen from './src/screens/AddRecipeScreen';
 import { COLORS } from './src/theme/constants';
 
 type RootStackParamList = {
   Home: undefined;
   RecipeDetail: { recipeId: string };
+  AddRecipe: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -66,6 +68,11 @@ export default function App() {
             name="RecipeDetail" 
             component={RecipeDetailScreen}
             options={{ title: 'Recept' }}
+          />
+          <Stack.Screen 
+            name="AddRecipe" 
+            component={AddRecipeScreen}
+            options={{ title: 'Lägg till recept' }}
           />
         </Stack.Navigator>
       </NavigationContainer>

@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { View, FlatList, StyleSheet, Text, Pressable, Image, ActivityIndicator, RefreshControl } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
+import { useFocusEffect } from '@react-navigation/native';
 import { Recipe } from '../types/recipe';
 import { getAllRecipes } from '../database/recipes.db';
 import { SPACING, COLORS } from '../theme/constants';
@@ -8,6 +9,7 @@ import { SPACING, COLORS } from '../theme/constants';
 type RootStackParamList = {
   Home: undefined;
   RecipeDetail: { recipeId: string };
+  AddRecipe: undefined;
 };
 
 type RecipeListScreenProps = {
@@ -35,6 +37,13 @@ const RecipeListScreen: React.FC<RecipeListScreenProps> = ({ navigation }) => {
     loadRecipes();
   }, []);
 
+  // Reload recipes when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      loadRecipes();
+    }, [])
+  );
+
   const handleRefresh = () => {
     setRefreshing(true);
     loadRecipes();
@@ -42,6 +51,10 @@ const RecipeListScreen: React.FC<RecipeListScreenProps> = ({ navigation }) => {
 
   const handleRecipePress = (recipeId: string) => {
     navigation.navigate('RecipeDetail', { recipeId });
+  };
+
+  const handleAddRecipe = () => {
+    navigation.navigate('AddRecipe');
   };
 
   if (loading && recipes.length === 0) {
@@ -53,26 +66,35 @@ const RecipeListScreen: React.FC<RecipeListScreenProps> = ({ navigation }) => {
     );
   }
 
-  if (recipes.length === 0) {
-    return (
-      <View style={styles.centerContainer}>
-        <Text style={styles.emptyText}>Inga recept än</Text>
-        <Text style={styles.emptySubtext}>Lägg till ditt första recept för att komma igång</Text>
-      </View>
-    );
-  }
-
   return (
     <View style={styles.container}>
-      <FlatList
-        data={recipes}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <RecipeCard recipe={item} onPress={() => handleRecipePress(item.id)} />
-        )}
-        contentContainerStyle={styles.listContainer}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
-      />
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>ReceptApp</Text>
+        <Pressable onPress={handleAddRecipe} style={({ pressed }) => [styles.addButton, pressed && { opacity: 0.7 }]}>
+          <Text style={styles.addButtonText}>+</Text>
+        </Pressable>
+      </View>
+
+      {recipes.length === 0 ? (
+        <View style={styles.centerContainer}>
+          <Text style={styles.emptyText}>Inga recept än</Text>
+          <Text style={styles.emptySubtext}>Lägg till ditt första recept för att komma igång</Text>
+          <Pressable onPress={handleAddRecipe} style={styles.emptyAddButton}>
+            <Text style={styles.emptyAddButtonText}>Lägg till recept</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <FlatList
+          data={recipes}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <RecipeCard recipe={item} onPress={() => handleRecipePress(item.id)} />
+          )}
+          contentContainerStyle={styles.listContainer}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
+        />
+      )}
     </View>
   );
 };
@@ -109,6 +131,33 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: COLORS.text_primary,
+  },
+  addButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: COLORS.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  addButtonText: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
   centerContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -130,6 +179,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.text_secondary,
     textAlign: 'center',
+    marginBottom: SPACING.lg,
+  },
+  emptyAddButton: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    borderRadius: 8,
+  },
+  emptyAddButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+    fontSize: 14,
   },
   listContainer: {
     padding: SPACING.md,
