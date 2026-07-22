@@ -27,7 +27,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   const loadTheme = async () => {
     try {
       const savedTheme = await AsyncStorage.getItem('theme');
-      if (savedTheme) {
+      if (savedTheme === 'dark' || savedTheme === 'light') {
         const selectedTheme = savedTheme === 'dark' ? darkTheme : lightTheme;
         setThemeState(selectedTheme);
       }
