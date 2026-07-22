@@ -5,14 +5,15 @@ import {
   StyleSheet,
   Text,
   Pressable,
-  Image,
   TextInput,
   ActivityIndicator,
+  ScrollView,
 } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { searchRecipes } from '../database/recipes.db';
+import { searchRecipes, filterRecipes, getDistinctCuisines, getDifficultyLevels } from '../database/recipes.db';
 import { Recipe } from '../types/recipe';
-import { SPACING, COLORS, TYPOGRAPHY } from '../theme/constants';
+import { SPACING, COLORS } from '../theme/constants';
+import RecipeCard from '../components/RecipeCard';
 
 type RootStackParamList = {
   RecipeDetail: { recipeId: string };
@@ -23,33 +24,96 @@ type SearchScreenProps = {
   navigation: StackNavigationProp<RootStackParamList, 'Search'>;
 };
 
+type DifficultyLevel = 'easy' | 'medium' | 'hard';
+
+interface FilterState {
+  cuisine: string;
+  difficulty: DifficultyLevel | null;
+  servings: string;
+  maxCookTime: string;
+}
+
 const SearchScreen: React.FC<SearchScreenProps> = ({ navigation }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [results, setResults] = useState<Recipe[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState<FilterState>({
+    cuisine: '',
+    difficulty: null,
+    servings: '',
+    maxCookTime: '',
+  });
+  const [availableCuisines, setAvailableCuisines] = useState<string[]>([]);
+  const [availableDifficulties, setAvailableDifficulties] = useState<DifficultyLevel[]>([]);
 
   useEffect(() => {
-    if (searchQuery.trim().length > 0) {
-      performSearch(searchQuery);
-    } else {
+    getDistinctCuisines().then(setAvailableCuisines).catch(() => {});
+    getDifficultyLevels().then(setAvailableDifficulties).catch(() => {});
+  }, []);
+
+  const hasActiveFilters =
+    filters.cuisine.trim().length > 0 ||
+    filters.difficulty !== null ||
+    filters.servings.trim().length > 0 ||
+    filters.maxCookTime.trim().length > 0;
+
+  useEffect(() => {
+    const hasText = searchQuery.trim().length > 0;
+    if (!hasText && !hasActiveFilters) {
       setResults([]);
       setHasSearched(false);
+      return;
     }
-  }, [searchQuery]);
 
-  const performSearch = async (query: string) => {
-    try {
-      setLoading(true);
-      const data = await searchRecipes(query);
-      setResults(data);
-      setHasSearched(true);
-    } catch (error) {
-      console.error('Error searching recipes:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    setLoading(true);
+    let cancelled = false;
+
+    const timer = setTimeout(async () => {
+      try {
+        let data: Recipe[];
+
+        if (hasActiveFilters) {
+          const criteria = {
+            cuisine: filters.cuisine.trim() || undefined,
+            difficulty: filters.difficulty ?? undefined,
+            servings: filters.servings.trim() ? Number(filters.servings) : undefined,
+            maxCookTime: filters.maxCookTime.trim() ? Number(filters.maxCookTime) : undefined,
+          };
+          data = await filterRecipes(criteria);
+          if (hasText) {
+            const q = searchQuery.trim().toLowerCase();
+            data = data.filter(
+              (r) =>
+                r.title.toLowerCase().includes(q) ||
+                r.description.toLowerCase().includes(q)
+            );
+          }
+        } else {
+          data = await searchRecipes(searchQuery.trim());
+        }
+
+        if (!cancelled) {
+          setResults(data);
+          setHasSearched(true);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error('Error searching recipes:', error);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }, 300);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [searchQuery, filters, hasActiveFilters]);
 
   const handleRecipePress = (recipeId: string) => {
     navigation.navigate('RecipeDetail', { recipeId });
@@ -59,6 +123,10 @@ const SearchScreen: React.FC<SearchScreenProps> = ({ navigation }) => {
     setSearchQuery('');
     setResults([]);
     setHasSearched(false);
+  };
+
+  const handleClearFilters = () => {
+    setFilters({ cuisine: '', difficulty: null, servings: '', maxCookTime: '' });
   };
 
   return (
@@ -81,7 +149,86 @@ const SearchScreen: React.FC<SearchScreenProps> = ({ navigation }) => {
             <Text style={styles.clearIcon}>✕</Text>
           </Pressable>
         )}
+        <Pressable
+          onPress={() => setShowFilters((v) => !v)}
+          style={[styles.filterButton, hasActiveFilters && styles.filterButtonActive]}
+        >
+          <Text style={[styles.filterIcon, hasActiveFilters && styles.filterIconActive]}>⚙</Text>
+        </Pressable>
       </View>
+
+      {/* Filter Panel */}
+      {showFilters && (
+        <View style={styles.filterPanel}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow}>
+            {/* Cuisine chips */}
+            {availableCuisines.map((c) => (
+              <Pressable
+                key={c}
+                onPress={() => setFilters((f) => ({ ...f, cuisine: f.cuisine === c ? '' : c }))}
+                style={[styles.chip, filters.cuisine === c && styles.chipActive]}
+              >
+                <Text style={[styles.chipText, filters.cuisine === c && styles.chipTextActive]}>{c}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+
+          {/* Difficulty */}
+          <View style={styles.filterSection}>
+            <Text style={styles.filterLabel}>Svårighetsgrad</Text>
+            <View style={styles.difficultyRow}>
+              {(availableDifficulties.length > 0
+                ? availableDifficulties
+                : (['easy', 'medium', 'hard'] as DifficultyLevel[])
+              ).map((d) => (
+                <Pressable
+                  key={d}
+                  onPress={() => setFilters((f) => ({ ...f, difficulty: f.difficulty === d ? null : d }))}
+                  style={[styles.chip, filters.difficulty === d && styles.chipActive]}
+                >
+                  <Text style={[styles.chipText, filters.difficulty === d && styles.chipTextActive]}>
+                    {d.charAt(0).toUpperCase() + d.slice(1)}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+
+          {/* Servings & Cook time */}
+          <View style={styles.filterSection}>
+            <View style={styles.filterInputRow}>
+              <View style={styles.filterInputGroup}>
+                <Text style={styles.filterLabel}>Min portioner</Text>
+                <TextInput
+                  style={styles.filterInput}
+                  placeholder="0"
+                  value={filters.servings}
+                  onChangeText={(v) => setFilters((f) => ({ ...f, servings: v }))}
+                  keyboardType="numeric"
+                  placeholderTextColor={COLORS.text_secondary}
+                />
+              </View>
+              <View style={styles.filterInputGroup}>
+                <Text style={styles.filterLabel}>Max koktid (min)</Text>
+                <TextInput
+                  style={styles.filterInput}
+                  placeholder="0"
+                  value={filters.maxCookTime}
+                  onChangeText={(v) => setFilters((f) => ({ ...f, maxCookTime: v }))}
+                  keyboardType="numeric"
+                  placeholderTextColor={COLORS.text_secondary}
+                />
+              </View>
+            </View>
+          </View>
+
+          {hasActiveFilters && (
+            <Pressable onPress={handleClearFilters} style={styles.clearFiltersButton}>
+              <Text style={styles.clearFiltersText}>Rensa filter</Text>
+            </Pressable>
+          )}
+        </View>
+      )}
 
       {/* Results or Empty State */}
       {loading ? (
@@ -111,37 +258,10 @@ const SearchScreen: React.FC<SearchScreenProps> = ({ navigation }) => {
         <View style={styles.centerContainer}>
           <Text style={styles.guideText}>🔍</Text>
           <Text style={styles.guideTitleText}>Sök efter recept</Text>
-          <Text style={styles.guideSubtext}>Börja skriva för att söka i din receptsamling</Text>
+          <Text style={styles.guideSubtext}>Börja skriva eller välj filter för att söka i din receptsamling</Text>
         </View>
       )}
     </View>
-  );
-};
-
-const RecipeCard: React.FC<{ recipe: Recipe; onPress: () => void }> = ({ recipe, onPress }) => {
-  return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}>
-      {recipe.image_url ? (
-        <Image source={{ uri: recipe.image_url }} style={styles.cardImage} />
-      ) : (
-        <View style={[styles.cardImage, styles.cardImagePlaceholder]}>
-          <Text style={styles.placeholderText}>Ingen bild</Text>
-        </View>
-      )}
-      <View style={styles.cardContent}>
-        <Text style={styles.cardTitle} numberOfLines={2}>
-          {recipe.title}
-        </Text>
-        <Text style={styles.cardDescription} numberOfLines={2}>
-          {recipe.description}
-        </Text>
-        <View style={styles.cardFooter}>
-          <Text style={styles.cardMeta}>⏱ {recipe.cookTime} min</Text>
-          <Text style={styles.cardMeta}>👥 {recipe.servings} portioner</Text>
-          {recipe.rating > 0 && <Text style={styles.cardMeta}>⭐ {recipe.rating.toFixed(1)}</Text>}
-        </View>
-      </View>
-    </Pressable>
   );
 };
 
@@ -182,6 +302,88 @@ const styles = StyleSheet.create({
   },
   clearIcon: {
     fontSize: 18,
+    color: COLORS.text_secondary,
+  },
+  filterButton: {
+    padding: SPACING.sm,
+  },
+  filterButtonActive: {
+    backgroundColor: COLORS.primary,
+    borderRadius: 8,
+  },
+  filterIcon: {
+    fontSize: 18,
+    color: COLORS.text_secondary,
+  },
+  filterIconActive: {
+    color: '#FFFFFF',
+  },
+  filterPanel: {
+    backgroundColor: COLORS.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+    paddingVertical: SPACING.sm,
+  },
+  filterRow: {
+    paddingHorizontal: SPACING.md,
+    marginBottom: SPACING.sm,
+  },
+  filterSection: {
+    paddingHorizontal: SPACING.md,
+    marginBottom: SPACING.sm,
+  },
+  filterLabel: {
+    fontSize: 12,
+    color: COLORS.text_secondary,
+    marginBottom: SPACING.xs,
+  },
+  difficultyRow: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+  },
+  filterInputRow: {
+    flexDirection: 'row',
+    gap: SPACING.md,
+  },
+  filterInputGroup: {
+    flex: 1,
+  },
+  filterInput: {
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xs,
+    backgroundColor: COLORS.surface_variant,
+    borderRadius: 6,
+    fontSize: 14,
+    color: COLORS.text_primary,
+  },
+  chip: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs,
+    borderRadius: 16,
+    backgroundColor: COLORS.surface_variant,
+    marginRight: SPACING.sm,
+  },
+  chipActive: {
+    backgroundColor: COLORS.primary,
+  },
+  chipText: {
+    fontSize: 13,
+    color: COLORS.text_secondary,
+  },
+  chipTextActive: {
+    color: '#FFFFFF',
+  },
+  clearFiltersButton: {
+    marginHorizontal: SPACING.md,
+    marginTop: SPACING.xs,
+    padding: SPACING.sm,
+    alignItems: 'center',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  clearFiltersText: {
+    fontSize: 13,
     color: COLORS.text_secondary,
   },
   centerContainer: {
@@ -225,58 +427,7 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
     marginTop: SPACING.md,
   },
-  card: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 12,
-    overflow: 'hidden',
-    marginBottom: SPACING.md,
-    flexDirection: 'row',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  cardPressed: {
-    opacity: 0.7,
-  },
-  cardImage: {
-    width: 100,
-    height: 100,
-    backgroundColor: COLORS.surface_variant,
-  },
-  cardImagePlaceholder: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  placeholderText: {
-    color: COLORS.text_secondary,
-    fontSize: 12,
-  },
-  cardContent: {
-    flex: 1,
-    padding: SPACING.md,
-    justifyContent: 'space-between',
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.text_primary,
-    marginBottom: SPACING.xs,
-  },
-  cardDescription: {
-    fontSize: 13,
-    color: COLORS.text_secondary,
-    marginBottom: SPACING.sm,
-  },
-  cardFooter: {
-    flexDirection: 'row',
-    gap: SPACING.sm,
-  },
-  cardMeta: {
-    fontSize: 12,
-    color: COLORS.text_secondary,
-  },
 });
 
 export default SearchScreen;
+

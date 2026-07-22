@@ -205,3 +205,70 @@ export const searchByIngredients = async (query: string): Promise<Recipe[]> => {
 
   return recipes.filter((r) => r !== null);
 };
+
+// Filter recipes by criteria
+interface FilterCriteria {
+  cuisine?: string;
+  difficulty?: 'easy' | 'medium' | 'hard';
+  servings?: number;
+  maxCookTime?: number;
+}
+
+export const filterRecipes = async (criteria: FilterCriteria): Promise<Recipe[]> => {
+  let query = 'SELECT * FROM recipes WHERE deleted_at IS NULL';
+  const params: (string | number)[] = [];
+
+  if (criteria.cuisine) {
+    query += ' AND LOWER(cuisine) = LOWER(?)';
+    params.push(criteria.cuisine);
+  }
+
+  if (criteria.difficulty) {
+    query += ' AND LOWER(difficulty) = LOWER(?)';
+    params.push(criteria.difficulty);
+  }
+
+  if (criteria.servings != null) {
+    query += ' AND servings >= ?';
+    params.push(criteria.servings);
+  }
+
+  if (criteria.maxCookTime != null) {
+    query += ' AND cook_time <= ?';
+    params.push(criteria.maxCookTime);
+  }
+
+  query += ' ORDER BY updated_at DESC';
+
+  const results = await queryAsync(query, params);
+
+  const recipesWithDetails = await Promise.all(
+    results.map(async (recipe) => ({
+      ...recipe,
+      ingredients: await getRecipeIngredients(recipe.id),
+      instructions: await getRecipeInstructions(recipe.id),
+      reviews: await getRecipeReviews(recipe.id),
+      isFavorite: await isRecipeFavorite(recipe.id),
+    }))
+  );
+
+  return recipesWithDetails;
+};
+
+// Get distinct cuisines from the database
+export const getDistinctCuisines = async (): Promise<string[]> => {
+  const rows = await queryAsync(
+    `SELECT DISTINCT cuisine FROM recipes WHERE deleted_at IS NULL AND cuisine IS NOT NULL ORDER BY cuisine`
+  );
+  return rows.map((row) => row.cuisine as string);
+};
+
+// Get distinct difficulty levels from the database, normalized to lowercase
+export const getDifficultyLevels = async (): Promise<('easy' | 'medium' | 'hard')[]> => {
+  const rows = await queryAsync(
+    `SELECT DISTINCT LOWER(difficulty) AS difficulty FROM recipes WHERE deleted_at IS NULL AND difficulty IS NOT NULL ORDER BY difficulty`
+  );
+  return rows
+    .map((row) => row.difficulty as string)
+    .filter((d): d is 'easy' | 'medium' | 'hard' => ['easy', 'medium', 'hard'].includes(d));
+};
