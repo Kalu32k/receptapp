@@ -179,3 +179,63 @@ export const getFavoriteRecipes = async (): Promise<Recipe[]> => {
 
   return recipes.filter((r) => r !== null);
 };
+
+// Filter recipes by criteria
+interface FilterCriteria {
+  cuisine?: string;
+  difficulty?: 'easy' | 'medium' | 'hard';
+  servings?: number;
+  maxCookTime?: number;
+}
+
+export const filterRecipes = async (criteria: FilterCriteria): Promise<Recipe[]> => {
+  let query = 'SELECT * FROM recipes WHERE deleted_at IS NULL';
+  const params: any[] = [];
+
+  if (criteria.cuisine) {
+    query += ' AND INSTR(LOWER(title), LOWER(?)) > 0';
+    params.push(criteria.cuisine);
+  }
+
+  if (criteria.difficulty) {
+    query += ' AND difficulty = ?';
+    params.push(criteria.difficulty);
+  }
+
+  if (criteria.servings) {
+    query += ' AND servings >= ?';
+    params.push(criteria.servings);
+  }
+
+  if (criteria.maxCookTime) {
+    query += ' AND cook_time <= ?';
+    params.push(criteria.maxCookTime);
+  }
+
+  query += ' ORDER BY updated_at DESC';
+
+  const results = await queryAsync(query, params);
+
+  const recipesWithDetails = await Promise.all(
+    results.map(async (recipe) => ({
+      ...recipe,
+      ingredients: await getRecipeIngredients(recipe.id),
+      instructions: await getRecipeInstructions(recipe.id),
+      reviews: await getRecipeReviews(recipe.id),
+      isFavorite: await isRecipeFavorite(recipe.id),
+    }))
+  );
+
+  return recipesWithDetails;
+};
+
+// Get distinct cuisines (from recipe titles/descriptions)
+export const getDistinctCuisines = async (): Promise<string[]> => {
+  const cuisines = ['Swedish', 'Italian', 'Asian', 'Mediterranean', 'Mexican', 'Indian'];
+  return cuisines;
+};
+
+// Get difficulty levels
+export const getDifficultyLevels = async (): Promise<('easy' | 'medium' | 'hard')[]> => {
+  return ['easy', 'medium', 'hard'];
+};
