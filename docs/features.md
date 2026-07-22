@@ -11,7 +11,7 @@
 - [ ] Share recipe
 
 ### ✅ 1.2 Search & Filter
-- [ ] Search by title
+- [x] Search by title
 - [ ] Search by ingredients
 - [ ] Filter by cuisine
 - [ ] Filter by difficulty
