@@ -179,3 +179,60 @@ export const getFavoriteRecipes = async (): Promise<Recipe[]> => {
 
   return recipes.filter((r) => r !== null);
 };
+
+// Shopping List functions
+export interface ShoppingItem {
+  id: string;
+  ingredient_name: string;
+  amount: number;
+  unit: string;
+  checked: boolean;
+}
+
+// Create shopping list from recipe
+export const createShoppingListFromRecipe = async (recipeId: string): Promise<ShoppingItem[]> => {
+  const ingredients = await getRecipeIngredients(recipeId);
+  
+  const shoppingItems: ShoppingItem[] = ingredients.map((ing) => ({
+    id: `shop_${Date.now()}_${Math.random()}`,
+    ingredient_name: ing.name,
+    amount: ing.amount,
+    unit: ing.unit,
+    checked: false,
+  }));
+
+  return shoppingItems;
+};
+
+// Combine multiple shopping lists
+export const combineShoppingLists = (
+  ...lists: ShoppingItem[][]
+): ShoppingItem[] => {
+  const combined: { [key: string]: ShoppingItem } = {};
+
+  lists.forEach((list) => {
+    list.forEach((item) => {
+      const key = `${item.ingredient_name}_${item.unit}`.toLowerCase();
+      if (combined[key]) {
+        combined[key].amount += item.amount;
+      } else {
+        combined[key] = { ...item };
+      }
+    });
+  });
+
+  return Object.values(combined);
+};
+
+// Format shopping list for export
+export const formatShoppingListForExport = (items: ShoppingItem[]): string => {
+  const header = '🛒 INKÖPSLISTA\n\n';
+  const itemsText = items
+    .map((item) =>
+      `${item.checked ? '✓' : '☐'} ${item.ingredient_name} ${item.amount}${item.unit}`
+    )
+    .join('\n');
+  const footer = `\n\nGenererad från ReceptApp 📱`;
+
+  return header + itemsText + footer;
+};
