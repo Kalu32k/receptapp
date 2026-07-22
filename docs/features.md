@@ -11,17 +11,17 @@
 - [ ] Share recipe
 
 ### ✅ 1.2 Search & Filter
-- [ ] Search by title
+- [x] Search by title
 - [ ] Search by ingredients
 - [ ] Filter by cuisine
 - [ ] Filter by difficulty
 - [ ] Filter by dietary tags
 
 ### ✅ 1.3 Favorites
-- [ ] Mark favorite
-- [ ] Unmark favorite
-- [ ] View favorites list
-- [ ] Sort by date added
+- [x] Mark favorite
+- [x] Unmark favorite
+- [x] View favorites list
+- [x] Sort by date added
 
 ### ✅ 1.4 Reviews & Ratings
 - [ ] View reviews
@@ -74,10 +74,12 @@
 ## Sprint 4: Advanced Features
 
 ### 4.1 Shopping List
-- [ ] Generate from ingredients
+- [x] Generate from ingredients (`createShoppingListFromRecipe`)
+- [x] Combine lists from multiple recipes (`combineShoppingLists`)
+- [x] Export as formatted text (`formatShoppingListForExport`)
+- [x] Checkmark items (`ShoppingItem.checked`)
 - [ ] Export to notes
 - [ ] Share via messaging
-- [ ] Checkmark items
 
 ### 4.2 Meal Planning
 - [ ] Plan by day/week
@@ -176,6 +178,12 @@ Shows:
 - Date created
 - Edit/delete (if author)
 - Helpful count
+
+### Shopping List
+
+- Generated from a recipe's ingredient list via `createShoppingListFromRecipe()`
+- Multiple lists can be merged with `combineShoppingLists()`, which aggregates amounts for the same ingredient/unit pair (collision-free composite key) and marks an item checked only when all merged entries are checked
+- Exported as plain text with `formatShoppingListForExport()` — Swedish header/footer, checkmark status, and `amount unit` with a space separator (e.g., "100 g")
 
 ---
 

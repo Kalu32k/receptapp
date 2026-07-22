@@ -1,23 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ActivityIndicator, View } from 'react-native';
 import { initializeDatabase } from './src/database/db';
 import { seedDatabase } from './src/database/seed';
-import RecipeListScreen from './src/screens/RecipeListScreen';
-import RecipeDetailScreen from './src/screens/RecipeDetailScreen';
-import AddRecipeScreen from './src/screens/AddRecipeScreen';
 import { ThemeProvider } from './src/theme/ThemeProvider';
+import MainTabs from './src/navigation/MainTabs';
 import { COLORS } from './src/theme/constants';
-
-type RootStackParamList = {
-  Home: undefined;
-  RecipeDetail: { recipeId: string };
-  AddRecipe: undefined;
-};
-
-const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function App() {
   const [isReady, setIsReady] = useState(false);
@@ -57,28 +46,7 @@ export default function App() {
     <ThemeProvider>
       <SafeAreaProvider>
         <NavigationContainer>
-          <Stack.Navigator
-            screenOptions={{
-              headerShown: false,
-              animationEnabled: true,
-            }}
-          >
-            <Stack.Screen 
-              name="Home" 
-              component={RecipeListScreen}
-              options={{ title: 'ReceptApp' }}
-            />
-            <Stack.Screen 
-              name="RecipeDetail" 
-              component={RecipeDetailScreen}
-              options={{ title: 'Recept' }}
-            />
-            <Stack.Screen 
-              name="AddRecipe" 
-              component={AddRecipeScreen}
-              options={{ title: 'Lägg till recept' }}
-            />
-          </Stack.Navigator>
+          <MainTabs />
         </NavigationContainer>
       </SafeAreaProvider>
     </ThemeProvider>

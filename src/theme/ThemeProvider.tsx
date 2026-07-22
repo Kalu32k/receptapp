@@ -44,7 +44,6 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
       setThemeState(systemColorScheme === 'dark' ? darkTheme : lightTheme);
     }
   }, [systemColorScheme, hasSavedThemePreference]);
-
   const setTheme = async (themeType: ThemeType) => {
     try {
       const newTheme = themeType === 'dark' ? darkTheme : lightTheme;
