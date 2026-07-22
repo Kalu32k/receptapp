@@ -57,8 +57,8 @@ export const darkTheme: Theme = {
 
 export interface ThemeContextType {
   theme: Theme;
-  toggleTheme: () => void;
-  setTheme: (theme: ThemeType) => void;
+  toggleTheme: () => Promise<void>;
+  setTheme: (theme: ThemeType) => Promise<void>;
 }
 
 export const ThemeContext = React.createContext<ThemeContextType | undefined>(undefined);

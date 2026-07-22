@@ -8,6 +8,7 @@ import { seedDatabase } from './src/database/seed';
 import RecipeListScreen from './src/screens/RecipeListScreen';
 import RecipeDetailScreen from './src/screens/RecipeDetailScreen';
 import AddRecipeScreen from './src/screens/AddRecipeScreen';
+import { ThemeProvider } from './src/theme/ThemeProvider';
 import { COLORS } from './src/theme/constants';
 
 type RootStackParamList = {
@@ -42,40 +43,44 @@ export default function App() {
 
   if (!isReady) {
     return (
-      <SafeAreaProvider>
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background }}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
-        </View>
-      </SafeAreaProvider>
+      <ThemeProvider>
+        <SafeAreaProvider>
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background }}>
+            <ActivityIndicator size="large" color={COLORS.primary} />
+          </View>
+        </SafeAreaProvider>
+      </ThemeProvider>
     );
   }
 
   return (
-    <SafeAreaProvider>
-      <NavigationContainer>
-        <Stack.Navigator
-          screenOptions={{
-            headerShown: false,
-            animationEnabled: true,
-          }}
-        >
-          <Stack.Screen 
-            name="Home" 
-            component={RecipeListScreen}
-            options={{ title: 'ReceptApp' }}
-          />
-          <Stack.Screen 
-            name="RecipeDetail" 
-            component={RecipeDetailScreen}
-            options={{ title: 'Recept' }}
-          />
-          <Stack.Screen 
-            name="AddRecipe" 
-            component={AddRecipeScreen}
-            options={{ title: 'Lägg till recept' }}
-          />
-        </Stack.Navigator>
-      </NavigationContainer>
-    </SafeAreaProvider>
+    <ThemeProvider>
+      <SafeAreaProvider>
+        <NavigationContainer>
+          <Stack.Navigator
+            screenOptions={{
+              headerShown: false,
+              animationEnabled: true,
+            }}
+          >
+            <Stack.Screen 
+              name="Home" 
+              component={RecipeListScreen}
+              options={{ title: 'ReceptApp' }}
+            />
+            <Stack.Screen 
+              name="RecipeDetail" 
+              component={RecipeDetailScreen}
+              options={{ title: 'Recept' }}
+            />
+            <Stack.Screen 
+              name="AddRecipe" 
+              component={AddRecipeScreen}
+              options={{ title: 'Lägg till recept' }}
+            />
+          </Stack.Navigator>
+        </NavigationContainer>
+      </SafeAreaProvider>
+    </ThemeProvider>
   );
 }
