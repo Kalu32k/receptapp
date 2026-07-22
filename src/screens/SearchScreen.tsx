@@ -1,108 +1,118 @@
-import React, { useEffect, useState, useMemo } from 'react';
-import { View, FlatList, StyleSheet, Text, Pressable, Image, ActivityIndicator, RefreshControl } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  FlatList,
+  StyleSheet,
+  Text,
+  Pressable,
+  Image,
+  TextInput,
+  ActivityIndicator,
+} from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { useFocusEffect } from '@react-navigation/native';
+import { searchRecipes } from '../database/recipes.db';
 import { Recipe } from '../types/recipe';
-import { getAllRecipes } from '../database/recipes.db';
-import { SPACING, COLORS } from '../theme/constants';
+import { SPACING, COLORS, TYPOGRAPHY } from '../theme/constants';
 
 type RootStackParamList = {
   RecipeDetail: { recipeId: string };
   Search: undefined;
-  AddRecipe: undefined;
 };
 
-type RecipeListScreenProps = {
-  navigation: StackNavigationProp<RootStackParamList>;
+type SearchScreenProps = {
+  navigation: StackNavigationProp<RootStackParamList, 'Search'>;
 };
 
-const RecipeListScreen: React.FC<RecipeListScreenProps> = ({ navigation }) => {
-  const [recipes, setRecipes] = useState<Recipe[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-
-  const loadRecipes = async () => {
-    try {
-      const data = await getAllRecipes();
-      setRecipes(data);
-    } catch (error) {
-      console.error('Error loading recipes:', error);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
+const SearchScreen: React.FC<SearchScreenProps> = ({ navigation }) => {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [results, setResults] = useState<Recipe[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
 
   useEffect(() => {
-    loadRecipes();
-  }, []);
+    if (searchQuery.trim().length > 0) {
+      performSearch(searchQuery);
+    } else {
+      setResults([]);
+      setHasSearched(false);
+    }
+  }, [searchQuery]);
 
-  // Reload recipes when screen comes into focus
-  useFocusEffect(
-    React.useCallback(() => {
-      loadRecipes();
-    }, [])
-  );
-
-  const handleRefresh = () => {
-    setRefreshing(true);
-    loadRecipes();
+  const performSearch = async (query: string) => {
+    try {
+      setLoading(true);
+      const data = await searchRecipes(query);
+      setResults(data);
+      setHasSearched(true);
+    } catch (error) {
+      console.error('Error searching recipes:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleRecipePress = (recipeId: string) => {
     navigation.navigate('RecipeDetail', { recipeId });
   };
 
-  const handleAddRecipe = () => {
-    navigation.navigate('AddRecipe');
+  const handleClearSearch = () => {
+    setSearchQuery('');
+    setResults([]);
+    setHasSearched(false);
   };
-
-  const handleSearch = () => {
-    navigation.navigate('Search');
-  };
-
-  if (loading && recipes.length === 0) {
-    return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
-        <Text style={styles.loadingText}>Laddar recept...</Text>
-      </View>
-    );
-  }
 
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>ReceptApp</Text>
-        <View style={styles.headerActions}>
-          <Pressable onPress={handleSearch} style={({ pressed }) => [styles.searchButton, pressed && { opacity: 0.7 }]}>
-            <Text style={styles.searchButtonIcon}>🔍</Text>
+        <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
+          <Text style={styles.backIcon}>←</Text>
+        </Pressable>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Sök efter recept..."
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          autoFocus
+          placeholderTextColor={COLORS.text_secondary}
+        />
+        {searchQuery.length > 0 && (
+          <Pressable onPress={handleClearSearch} style={styles.clearButton}>
+            <Text style={styles.clearIcon}>✕</Text>
           </Pressable>
-          <Pressable onPress={handleAddRecipe} style={({ pressed }) => [styles.addButton, pressed && { opacity: 0.7 }]}>
-            <Text style={styles.addButtonText}>+</Text>
-          </Pressable>
-        </View>
+        )}
       </View>
 
-      {recipes.length === 0 ? (
+      {/* Results or Empty State */}
+      {loading ? (
         <View style={styles.centerContainer}>
-          <Text style={styles.emptyText}>Inga recept än</Text>
-          <Text style={styles.emptySubtext}>Lägg till ditt första recept för att komma igång</Text>
-          <Pressable onPress={handleAddRecipe} style={styles.emptyAddButton}>
-            <Text style={styles.emptyAddButtonText}>Lägg till recept</Text>
-          </Pressable>
+          <ActivityIndicator size="large" color={COLORS.primary} />
         </View>
-      ) : (
+      ) : hasSearched && results.length === 0 ? (
+        <View style={styles.centerContainer}>
+          <Text style={styles.emptyText}>Inga recept hittades</Text>
+          <Text style={styles.emptySubtext}>Prova att söka på något annat</Text>
+        </View>
+      ) : hasSearched && results.length > 0 ? (
         <FlatList
-          data={recipes}
+          data={results}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
             <RecipeCard recipe={item} onPress={() => handleRecipePress(item.id)} />
           )}
           contentContainerStyle={styles.listContainer}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
+          ListHeaderComponent={
+            <Text style={styles.resultCount}>
+              Hittade {results.length} recept
+            </Text>
+          }
         />
+      ) : (
+        <View style={styles.centerContainer}>
+          <Text style={styles.guideText}>🔍</Text>
+          <Text style={styles.guideTitleText}>Sök efter recept</Text>
+          <Text style={styles.guideSubtext}>Börja skriva för att söka i din receptsamling</Text>
+        </View>
       )}
     </View>
   );
@@ -142,46 +152,37 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: SPACING.lg,
+    paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.md,
+    backgroundColor: COLORS.surface,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
+    gap: SPACING.md,
   },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: '700',
+  backButton: {
+    padding: SPACING.sm,
+  },
+  backIcon: {
+    fontSize: 20,
     color: COLORS.text_primary,
   },
-  headerActions: {
-    flexDirection: 'row',
-    gap: SPACING.md,
-    alignItems: 'center',
-  },
-  searchButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  searchInput: {
+    flex: 1,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
     backgroundColor: COLORS.surface_variant,
-    justifyContent: 'center',
-    alignItems: 'center',
+    borderRadius: 8,
+    fontSize: 14,
+    color: COLORS.text_primary,
+    height: 40,
   },
-  searchButtonIcon: {
+  clearButton: {
+    padding: SPACING.sm,
+  },
+  clearIcon: {
     fontSize: 18,
-  },
-  addButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: COLORS.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  addButtonText: {
-    color: '#FFFFFF',
-    fontSize: 24,
-    fontWeight: 'bold',
+    color: COLORS.text_secondary,
   },
   centerContainer: {
     flex: 1,
@@ -189,13 +190,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: SPACING.lg,
   },
-  loadingText: {
-    marginTop: SPACING.md,
-    fontSize: 16,
-    color: COLORS.text_secondary,
-  },
   emptyText: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '600',
     color: COLORS.text_primary,
     marginBottom: SPACING.sm,
@@ -204,21 +200,30 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.text_secondary,
     textAlign: 'center',
-    marginBottom: SPACING.lg,
   },
-  emptyAddButton: {
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
-    borderRadius: 8,
+  guideText: {
+    fontSize: 48,
+    marginBottom: SPACING.md,
   },
-  emptyAddButtonText: {
-    color: '#FFFFFF',
+  guideTitleText: {
+    fontSize: 20,
     fontWeight: '600',
+    color: COLORS.text_primary,
+    marginBottom: SPACING.sm,
+  },
+  guideSubtext: {
     fontSize: 14,
+    color: COLORS.text_secondary,
+    textAlign: 'center',
   },
   listContainer: {
     padding: SPACING.md,
+  },
+  resultCount: {
+    color: COLORS.text_secondary,
+    fontSize: 12,
+    marginBottom: SPACING.md,
+    marginTop: SPACING.md,
   },
   card: {
     backgroundColor: COLORS.surface,
@@ -274,4 +279,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default RecipeListScreen;
+export default SearchScreen;
