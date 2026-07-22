@@ -13,6 +13,7 @@ import { RouteProp } from '@react-navigation/native';
 import { Recipe } from '../types/recipe';
 import { getRecipeById, toggleFavorite } from '../database/recipes.db';
 import { SPACING, COLORS, TYPOGRAPHY } from '../theme/constants';
+import { shareRecipe } from '../utils/shareRecipe';
 
 type RootStackParamList = {
   RecipeDetail: { recipeId: string };
