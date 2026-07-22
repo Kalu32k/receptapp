@@ -18,7 +18,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   const [theme, setThemeState] = useState(
     systemColorScheme === 'dark' ? darkTheme : lightTheme
   );
-  const [isLoading, setIsLoading] = useState(true);
+  const [hasSavedThemePreference, setHasSavedThemePreference] = useState(false);
 
   useEffect(() => {
     loadTheme();
@@ -27,21 +27,28 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   const loadTheme = async () => {
     try {
       const savedTheme = await AsyncStorage.getItem('theme');
-      if (savedTheme) {
+      if (savedTheme === 'dark' || savedTheme === 'light') {
         const selectedTheme = savedTheme === 'dark' ? darkTheme : lightTheme;
         setThemeState(selectedTheme);
+        setHasSavedThemePreference(true);
+      } else {
+        setHasSavedThemePreference(false);
       }
     } catch (error) {
       console.error('Error loading theme:', error);
-    } finally {
-      setIsLoading(false);
     }
   };
 
+  useEffect(() => {
+    if (!hasSavedThemePreference) {
+      setThemeState(systemColorScheme === 'dark' ? darkTheme : lightTheme);
+    }
+  }, [systemColorScheme, hasSavedThemePreference]);
   const setTheme = async (themeType: ThemeType) => {
     try {
       const newTheme = themeType === 'dark' ? darkTheme : lightTheme;
       setThemeState(newTheme);
+      setHasSavedThemePreference(true);
       await AsyncStorage.setItem('theme', themeType);
     } catch (error) {
       console.error('Error setting theme:', error);
@@ -58,10 +65,6 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     toggleTheme,
     setTheme,
   };
-
-  if (isLoading) {
-    return null;
-  }
 
   return (
     <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
