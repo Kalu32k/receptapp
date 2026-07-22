@@ -180,6 +180,7 @@ export const getFavoriteRecipes = async (): Promise<Recipe[]> => {
   return recipes.filter((r) => r !== null);
 };
 
+<<<<<<< HEAD
 // Search by ingredients
 export const searchByIngredients = async (query: string): Promise<Recipe[]> => {
   if (!query.trim()) {
@@ -271,4 +272,48 @@ export const getDifficultyLevels = async (): Promise<('easy' | 'medium' | 'hard'
   return rows
     .map((row) => row.difficulty as string)
     .filter((d): d is 'easy' | 'medium' | 'hard' => ['easy', 'medium', 'hard'].includes(d));
+=======
+// Add or update review
+export const addReview = async (
+  recipeId: string,
+  rating: number,
+  comment: string
+): Promise<void> => {
+  const id = `review_${Date.now()}`;
+  const now = new Date().toISOString();
+
+  await executeAsync(
+    `INSERT INTO reviews (id, recipe_id, rating, comment, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [id, recipeId, rating, comment, now, now]
+  );
+};
+
+// Get average rating for recipe
+export const getAverageRating = async (recipeId: string): Promise<number> => {
+  const result = await queryAsync(
+    `SELECT AVG(rating) as avg_rating FROM reviews WHERE recipe_id = ?`,
+    [recipeId]
+  );
+
+  return result[0]?.avg_rating ?? 0;
+};
+
+// Get review count for recipe
+export const getReviewCount = async (recipeId: string): Promise<number> => {
+  const result = await queryAsync(
+    `SELECT COUNT(*) as count FROM reviews WHERE recipe_id = ?`,
+    [recipeId]
+  );
+
+  return result[0]?.count ?? 0;
+};
+
+// Delete review
+export const deleteReview = async (reviewId: string): Promise<void> => {
+  await executeAsync(
+    `DELETE FROM reviews WHERE id = ?`,
+    [reviewId]
+  );
+>>>>>>> ec487a0ff37494beb8d0300988263ece10d0e762
 };
