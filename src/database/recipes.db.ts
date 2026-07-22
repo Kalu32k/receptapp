@@ -179,3 +179,29 @@ export const getFavoriteRecipes = async (): Promise<Recipe[]> => {
 
   return recipes.filter((r) => r !== null);
 };
+
+// Search by ingredients
+export const searchByIngredients = async (query: string): Promise<Recipe[]> => {
+  if (!query.trim()) {
+    return [];
+  }
+
+  const ingredientResults = await queryAsync(
+    `SELECT DISTINCT recipe_id FROM ingredients 
+     WHERE name LIKE ? AND CAST(ROWID AS TEXT) IN (
+       SELECT recipe_id FROM recipes WHERE deleted_at IS NULL
+     )`,
+    [`%${query}%`]
+  );
+
+  const recipeIds = ingredientResults.map((result) => result.recipe_id);
+  if (recipeIds.length === 0) {
+    return [];
+  }
+
+  const recipes = await Promise.all(
+    recipeIds.map((id) => getRecipeById(id) as Promise<Recipe>)
+  );
+
+  return recipes.filter((r) => r !== null);
+};
