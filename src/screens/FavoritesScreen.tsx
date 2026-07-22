@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   FlatList,
@@ -6,113 +6,99 @@ import {
   Text,
   Pressable,
   Image,
-  TextInput,
   ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { searchRecipes } from '../database/recipes.db';
+import { useFocusEffect } from '@react-navigation/native';
 import { Recipe } from '../types/recipe';
-import { SPACING, COLORS, TYPOGRAPHY } from '../theme/constants';
+import { getFavoriteRecipes } from '../database/recipes.db';
+import { SPACING, COLORS } from '../theme/constants';
 
 type RootStackParamList = {
+  Home: undefined;
+  Favorites: undefined;
   RecipeDetail: { recipeId: string };
-  Search: undefined;
 };
 
-type SearchScreenProps = {
-  navigation: StackNavigationProp<RootStackParamList, 'Search'>;
+type FavoritesScreenProps = {
+  navigation: StackNavigationProp<RootStackParamList, 'Favorites'>;
 };
 
-const SearchScreen: React.FC<SearchScreenProps> = ({ navigation }) => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [results, setResults] = useState<Recipe[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [hasSearched, setHasSearched] = useState(false);
+const FavoritesScreen: React.FC<FavoritesScreenProps> = ({ navigation }) => {
+  const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    if (searchQuery.trim().length > 0) {
-      performSearch(searchQuery);
-    } else {
-      setResults([]);
-      setHasSearched(false);
-    }
-  }, [searchQuery]);
-
-  const performSearch = async (query: string) => {
+  const loadFavorites = async () => {
     try {
-      setLoading(true);
-      const data = await searchRecipes(query);
-      setResults(data);
-      setHasSearched(true);
+      const data = await getFavoriteRecipes();
+      setRecipes(data);
     } catch (error) {
-      console.error('Error searching recipes:', error);
+      console.error('Error loading favorites:', error);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
+  };
+
+  useEffect(() => {
+    loadFavorites();
+  }, []);
+
+  // Reload favorites when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      loadFavorites();
+    }, [])
+  );
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    loadFavorites();
   };
 
   const handleRecipePress = (recipeId: string) => {
     navigation.navigate('RecipeDetail', { recipeId });
   };
 
-  const handleClearSearch = () => {
-    setSearchQuery('');
-    setResults([]);
-    setHasSearched(false);
-  };
+  if (loading && recipes.length === 0) {
+    return (
+      <View style={styles.centerContainer}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+        <Text style={styles.loadingText}>Laddar favoriter...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Text style={styles.backIcon}>←</Text>
-        </Pressable>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Sök efter recept..."
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          autoFocus
-          placeholderTextColor={COLORS.text_secondary}
-        />
-        {searchQuery.length > 0 && (
-          <Pressable onPress={handleClearSearch} style={styles.clearButton}>
-            <Text style={styles.clearIcon}>✕</Text>
-          </Pressable>
-        )}
+        <Text style={styles.headerTitle}>Favoriter</Text>
       </View>
 
-      {/* Results or Empty State */}
-      {loading ? (
+      {recipes.length === 0 ? (
         <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <Text style={styles.emptyIcon}>❤️</Text>
+          <Text style={styles.emptyText}>Inga favoriter än</Text>
+          <Text style={styles.emptySubtext}>Markera recept som favorit för att spara dem här</Text>
         </View>
-      ) : hasSearched && results.length === 0 ? (
-        <View style={styles.centerContainer}>
-          <Text style={styles.emptyText}>Inga recept hittades</Text>
-          <Text style={styles.emptySubtext}>Prova att söka på något annat</Text>
-        </View>
-      ) : hasSearched && results.length > 0 ? (
+      ) : (
         <FlatList
-          data={results}
+          data={recipes}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
             <RecipeCard recipe={item} onPress={() => handleRecipePress(item.id)} />
           )}
           contentContainerStyle={styles.listContainer}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
           ListHeaderComponent={
-            <Text style={styles.resultCount}>
-              Hittade {results.length} recept
+            <Text style={styles.favoriteCount}>
+              {recipes.length} favorit{recipes.length !== 1 ? 'er' : ''}
             </Text>
           }
         />
-      ) : (
-        <View style={styles.centerContainer}>
-          <Text style={styles.guideText}>🔍</Text>
-          <Text style={styles.guideTitleText}>Sök efter recept</Text>
-          <Text style={styles.guideSubtext}>Börja skriva för att söka i din receptsamling</Text>
-        </View>
       )}
     </View>
   );
@@ -151,38 +137,15 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: SPACING.md,
+    paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
-    backgroundColor: COLORS.surface,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
-    gap: SPACING.md,
   },
-  backButton: {
-    padding: SPACING.sm,
-  },
-  backIcon: {
-    fontSize: 20,
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: '700',
     color: COLORS.text_primary,
-  },
-  searchInput: {
-    flex: 1,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    backgroundColor: COLORS.surface_variant,
-    borderRadius: 8,
-    fontSize: 14,
-    color: COLORS.text_primary,
-    height: 40,
-  },
-  clearButton: {
-    padding: SPACING.sm,
-  },
-  clearIcon: {
-    fontSize: 18,
-    color: COLORS.text_secondary,
   },
   centerContainer: {
     flex: 1,
@@ -190,8 +153,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: SPACING.lg,
   },
+  emptyIcon: {
+    fontSize: 64,
+    marginBottom: SPACING.md,
+  },
   emptyText: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '600',
     color: COLORS.text_primary,
     marginBottom: SPACING.sm,
@@ -201,29 +168,18 @@ const styles = StyleSheet.create({
     color: COLORS.text_secondary,
     textAlign: 'center',
   },
-  guideText: {
-    fontSize: 48,
-    marginBottom: SPACING.md,
-  },
-  guideTitleText: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: COLORS.text_primary,
-    marginBottom: SPACING.sm,
-  },
-  guideSubtext: {
-    fontSize: 14,
+  loadingText: {
+    marginTop: SPACING.md,
+    fontSize: 16,
     color: COLORS.text_secondary,
-    textAlign: 'center',
   },
   listContainer: {
     padding: SPACING.md,
   },
-  resultCount: {
+  favoriteCount: {
     color: COLORS.text_secondary,
     fontSize: 12,
     marginBottom: SPACING.md,
-    marginTop: SPACING.md,
   },
   card: {
     backgroundColor: COLORS.surface,
@@ -279,4 +235,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default SearchScreen;
+export default FavoritesScreen;

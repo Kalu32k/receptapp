@@ -27,7 +27,6 @@ const RecipeSchema = z.object({
 type RecipeFormData = z.infer<typeof RecipeSchema>;
 
 type RootStackParamList = {
-  Home: undefined;
   RecipeDetail: { recipeId: string };
   AddRecipe: undefined;
 };

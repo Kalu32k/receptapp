@@ -15,7 +15,6 @@ import { getRecipeById, toggleFavorite } from '../database/recipes.db';
 import { SPACING, COLORS, TYPOGRAPHY } from '../theme/constants';
 
 type RootStackParamList = {
-  Home: undefined;
   RecipeDetail: { recipeId: string };
 };
 

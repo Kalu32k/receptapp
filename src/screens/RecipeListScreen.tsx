@@ -7,14 +7,13 @@ import { getAllRecipes } from '../database/recipes.db';
 import { SPACING, COLORS } from '../theme/constants';
 
 type RootStackParamList = {
-  Home: undefined;
   RecipeDetail: { recipeId: string };
-  AddRecipe: undefined;
   Search: undefined;
+  AddRecipe: undefined;
 };
 
 type RecipeListScreenProps = {
-  navigation: StackNavigationProp<RootStackParamList, 'Home'>;
+  navigation: StackNavigationProp<RootStackParamList>;
 };
 
 const RecipeListScreen: React.FC<RecipeListScreenProps> = ({ navigation }) => {
