@@ -1,10 +1,11 @@
-import React, { useEffect, useState, useMemo } from 'react';
-import { View, FlatList, StyleSheet, Text, Pressable, Image, ActivityIndicator, RefreshControl } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, FlatList, StyleSheet, Text, Pressable, ActivityIndicator, RefreshControl } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { Recipe } from '../types/recipe';
 import { getAllRecipes } from '../database/recipes.db';
 import { SPACING, COLORS } from '../theme/constants';
+import RecipeCard from '../components/RecipeCard';
 
 type RootStackParamList = {
   RecipeDetail: { recipeId: string };
@@ -108,33 +109,6 @@ const RecipeListScreen: React.FC<RecipeListScreenProps> = ({ navigation }) => {
   );
 };
 
-const RecipeCard: React.FC<{ recipe: Recipe; onPress: () => void }> = ({ recipe, onPress }) => {
-  return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}>
-      {recipe.image_url ? (
-        <Image source={{ uri: recipe.image_url }} style={styles.cardImage} />
-      ) : (
-        <View style={[styles.cardImage, styles.cardImagePlaceholder]}>
-          <Text style={styles.placeholderText}>Ingen bild</Text>
-        </View>
-      )}
-      <View style={styles.cardContent}>
-        <Text style={styles.cardTitle} numberOfLines={2}>
-          {recipe.title}
-        </Text>
-        <Text style={styles.cardDescription} numberOfLines={2}>
-          {recipe.description}
-        </Text>
-        <View style={styles.cardFooter}>
-          <Text style={styles.cardMeta}>⏱ {recipe.cookTime} min</Text>
-          <Text style={styles.cardMeta}>👥 {recipe.servings} portioner</Text>
-          {recipe.rating > 0 && <Text style={styles.cardMeta}>⭐ {recipe.rating.toFixed(1)}</Text>}
-        </View>
-      </View>
-    </Pressable>
-  );
-};
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -219,58 +193,6 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     padding: SPACING.md,
-  },
-  card: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 12,
-    overflow: 'hidden',
-    marginBottom: SPACING.md,
-    flexDirection: 'row',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  cardPressed: {
-    opacity: 0.7,
-  },
-  cardImage: {
-    width: 100,
-    height: 100,
-    backgroundColor: COLORS.surface_variant,
-  },
-  cardImagePlaceholder: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  placeholderText: {
-    color: COLORS.text_secondary,
-    fontSize: 12,
-  },
-  cardContent: {
-    flex: 1,
-    padding: SPACING.md,
-    justifyContent: 'space-between',
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.text_primary,
-    marginBottom: SPACING.xs,
-  },
-  cardDescription: {
-    fontSize: 13,
-    color: COLORS.text_secondary,
-    marginBottom: SPACING.sm,
-  },
-  cardFooter: {
-    flexDirection: 'row',
-    gap: SPACING.sm,
-  },
-  cardMeta: {
-    fontSize: 12,
-    color: COLORS.text_secondary,
   },
 });
 
