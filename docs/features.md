@@ -4,7 +4,7 @@
 
 ### ✅ 1.1 Recipe Management
 - [x] Display recipe list
-- [ ] Add recipe
+- [x] Add recipe
 - [ ] Edit recipe
 - [ ] Delete recipe
 - [x] Recipe detail view
