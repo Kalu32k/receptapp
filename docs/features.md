@@ -18,10 +18,10 @@
 - [ ] Filter by dietary tags
 
 ### ✅ 1.3 Favorites
-- [ ] Mark favorite
-- [ ] Unmark favorite
-- [ ] View favorites list
-- [ ] Sort by date added
+- [x] Mark favorite
+- [x] Unmark favorite
+- [x] View favorites list
+- [x] Sort by date added
 
 ### ✅ 1.4 Reviews & Ratings
 - [ ] View reviews
