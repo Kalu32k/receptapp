@@ -7,7 +7,7 @@
 - [ ] Add recipe
 - [ ] Edit recipe
 - [ ] Delete recipe
-- [ ] Recipe detail view
+- [x] Recipe detail view
 - [ ] Share recipe
 
 ### ✅ 1.2 Search & Filter
