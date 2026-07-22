@@ -1,32 +1,41 @@
-import React, { useEffect, useState, useMemo } from 'react';
-import { View, FlatList, StyleSheet, Text, Pressable, Image, ActivityIndicator, RefreshControl } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import {
+  View,
+  FlatList,
+  StyleSheet,
+  Text,
+  Pressable,
+  Image,
+  ActivityIndicator,
+  RefreshControl,
+} from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { Recipe } from '../types/recipe';
-import { getAllRecipes } from '../database/recipes.db';
+import { getFavoriteRecipes } from '../database/recipes.db';
 import { SPACING, COLORS } from '../theme/constants';
 
 type RootStackParamList = {
+  Home: undefined;
+  Favorites: undefined;
   RecipeDetail: { recipeId: string };
-  Search: undefined;
-  AddRecipe: undefined;
 };
 
-type RecipeListScreenProps = {
-  navigation: StackNavigationProp<RootStackParamList>;
+type FavoritesScreenProps = {
+  navigation: StackNavigationProp<RootStackParamList, 'Favorites'>;
 };
 
-const RecipeListScreen: React.FC<RecipeListScreenProps> = ({ navigation }) => {
+const FavoritesScreen: React.FC<FavoritesScreenProps> = ({ navigation }) => {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const loadRecipes = async () => {
+  const loadFavorites = async () => {
     try {
-      const data = await getAllRecipes();
+      const data = await getFavoriteRecipes();
       setRecipes(data);
     } catch (error) {
-      console.error('Error loading recipes:', error);
+      console.error('Error loading favorites:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -34,38 +43,30 @@ const RecipeListScreen: React.FC<RecipeListScreenProps> = ({ navigation }) => {
   };
 
   useEffect(() => {
-    loadRecipes();
+    loadFavorites();
   }, []);
 
-  // Reload recipes when screen comes into focus
+  // Reload favorites when screen comes into focus
   useFocusEffect(
     React.useCallback(() => {
-      loadRecipes();
+      loadFavorites();
     }, [])
   );
 
   const handleRefresh = () => {
     setRefreshing(true);
-    loadRecipes();
+    loadFavorites();
   };
 
   const handleRecipePress = (recipeId: string) => {
     navigation.navigate('RecipeDetail', { recipeId });
   };
 
-  const handleAddRecipe = () => {
-    navigation.navigate('AddRecipe');
-  };
-
-  const handleSearch = () => {
-    navigation.navigate('Search');
-  };
-
   if (loading && recipes.length === 0) {
     return (
       <View style={styles.centerContainer}>
         <ActivityIndicator size="large" color={COLORS.primary} />
-        <Text style={styles.loadingText}>Laddar recept...</Text>
+        <Text style={styles.loadingText}>Laddar favoriter...</Text>
       </View>
     );
   }
@@ -74,24 +75,14 @@ const RecipeListScreen: React.FC<RecipeListScreenProps> = ({ navigation }) => {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>ReceptApp</Text>
-        <View style={styles.headerActions}>
-          <Pressable onPress={handleSearch} style={({ pressed }) => [styles.searchButton, pressed && { opacity: 0.7 }]}>
-            <Text style={styles.searchButtonIcon}>🔍</Text>
-          </Pressable>
-          <Pressable onPress={handleAddRecipe} style={({ pressed }) => [styles.addButton, pressed && { opacity: 0.7 }]}>
-            <Text style={styles.addButtonText}>+</Text>
-          </Pressable>
-        </View>
+        <Text style={styles.headerTitle}>Favoriter</Text>
       </View>
 
       {recipes.length === 0 ? (
         <View style={styles.centerContainer}>
-          <Text style={styles.emptyText}>Inga recept än</Text>
-          <Text style={styles.emptySubtext}>Lägg till ditt första recept för att komma igång</Text>
-          <Pressable onPress={handleAddRecipe} style={styles.emptyAddButton}>
-            <Text style={styles.emptyAddButtonText}>Lägg till recept</Text>
-          </Pressable>
+          <Text style={styles.emptyIcon}>❤️</Text>
+          <Text style={styles.emptyText}>Inga favoriter än</Text>
+          <Text style={styles.emptySubtext}>Markera recept som favorit för att spara dem här</Text>
         </View>
       ) : (
         <FlatList
@@ -102,6 +93,11 @@ const RecipeListScreen: React.FC<RecipeListScreenProps> = ({ navigation }) => {
           )}
           contentContainerStyle={styles.listContainer}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
+          ListHeaderComponent={
+            <Text style={styles.favoriteCount}>
+              {recipes.length} favorit{recipes.length !== 1 ? 'er' : ''}
+            </Text>
+          }
         />
       )}
     </View>
@@ -141,9 +137,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
     borderBottomWidth: 1,
@@ -154,45 +147,15 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: COLORS.text_primary,
   },
-  headerActions: {
-    flexDirection: 'row',
-    gap: SPACING.md,
-    alignItems: 'center',
-  },
-  searchButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: COLORS.surface_variant,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  searchButtonIcon: {
-    fontSize: 18,
-  },
-  addButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: COLORS.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  addButtonText: {
-    color: '#FFFFFF',
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
   centerContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: SPACING.lg,
   },
-  loadingText: {
-    marginTop: SPACING.md,
-    fontSize: 16,
-    color: COLORS.text_secondary,
+  emptyIcon: {
+    fontSize: 64,
+    marginBottom: SPACING.md,
   },
   emptyText: {
     fontSize: 20,
@@ -204,21 +167,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.text_secondary,
     textAlign: 'center',
-    marginBottom: SPACING.lg,
   },
-  emptyAddButton: {
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
-    borderRadius: 8,
-  },
-  emptyAddButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '600',
-    fontSize: 14,
+  loadingText: {
+    marginTop: SPACING.md,
+    fontSize: 16,
+    color: COLORS.text_secondary,
   },
   listContainer: {
     padding: SPACING.md,
+  },
+  favoriteCount: {
+    color: COLORS.text_secondary,
+    fontSize: 12,
+    marginBottom: SPACING.md,
   },
   card: {
     backgroundColor: COLORS.surface,
@@ -274,4 +235,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default RecipeListScreen;
+export default FavoritesScreen;

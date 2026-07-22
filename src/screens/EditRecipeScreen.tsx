@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   ScrollView,
@@ -8,15 +8,17 @@ import {
   Pressable,
   FlatList,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
+import { RouteProp } from '@react-navigation/native';
 import { useForm, Controller } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { addRecipe } from '../database/recipes.db';
+import { getRecipeById, updateRecipe, deleteRecipe } from '../database/recipes.db';
+import { Recipe } from '../types/recipe';
 import { SPACING, COLORS, TYPOGRAPHY } from '../theme/constants';
 
-// Zod validation schema
 const RecipeSchema = z.object({
   title: z.string().min(1, 'Receptets namn är obligatoriskt').max(100, 'Max 100 tecken'),
   description: z.string().max(500, 'Max 500 tecken').optional().default(''),
@@ -28,15 +30,16 @@ type RecipeFormData = z.infer<typeof RecipeSchema>;
 
 type RootStackParamList = {
   RecipeDetail: { recipeId: string };
-  AddRecipe: undefined;
+  EditRecipe: { recipeId: string };
 };
 
-type AddRecipeScreenProps = {
-  navigation: StackNavigationProp<RootStackParamList, 'AddRecipe'>;
+type EditRecipeScreenProps = {
+  navigation: StackNavigationProp<RootStackParamList, 'EditRecipe'>;
+  route: RouteProp<RootStackParamList, 'EditRecipe'>;
 };
 
 interface Ingredient {
-  tempId: string;
+  id: string;
   name: string;
   amount: number | null;
   unit: string;
@@ -47,31 +50,53 @@ interface Instruction {
   text: string;
 }
 
-const AddRecipeScreen: React.FC<AddRecipeScreenProps> = ({ navigation }) => {
+const EditRecipeScreen: React.FC<EditRecipeScreenProps> = ({ navigation, route }) => {
+  const { recipeId } = route.params;
+  const [recipe, setRecipe] = useState<Recipe | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [instructions, setInstructions] = useState<Instruction[]>([]);
   const [newIngredient, setNewIngredient] = useState({ name: '', amount: '', unit: 'g' });
   const [newInstruction, setNewInstruction] = useState('');
-  const [loading, setLoading] = useState(false);
 
   const {
     control,
     handleSubmit,
     formState: { errors },
+    setValue,
   } = useForm<RecipeFormData>({
     resolver: zodResolver(RecipeSchema),
-    defaultValues: {
-      title: '',
-      description: '',
-      cookTime: 30,
-      servings: 4,
-    },
   });
+
+  useEffect(() => {
+    loadRecipe();
+  }, []);
+
+  const loadRecipe = async () => {
+    try {
+      const data = await getRecipeById(recipeId);
+      if (data) {
+        setRecipe(data);
+        setValue('title', data.title);
+        setValue('description', data.description);
+        setValue('cookTime', data.cookTime);
+        setValue('servings', data.servings);
+        setIngredients(data.ingredients);
+        setInstructions(data.instructions.map((text, index) => ({ tempId: `inst-${index}`, text })));
+      }
+    } catch (error) {
+      console.error('Error loading recipe:', error);
+      Alert.alert('Error', 'Kunde inte ladda receptet');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const addIngredient = () => {
     if (newIngredient.name.trim()) {
       const ingredient: Ingredient = {
-        tempId: `temp-${Date.now()}`,
+        id: `ing-${Date.now()}`,
         name: newIngredient.name,
         amount: newIngredient.amount ? parseFloat(newIngredient.amount) : null,
         unit: newIngredient.unit,
@@ -81,8 +106,8 @@ const AddRecipeScreen: React.FC<AddRecipeScreenProps> = ({ navigation }) => {
     }
   };
 
-  const removeIngredient = (tempId: string) => {
-    setIngredients(ingredients.filter((i) => i.tempId !== tempId));
+  const removeIngredient = (id: string) => {
+    setIngredients(ingredients.filter((i) => i.id !== id));
   };
 
   const addInstruction = () => {
@@ -102,47 +127,67 @@ const AddRecipeScreen: React.FC<AddRecipeScreenProps> = ({ navigation }) => {
 
   const onSubmit = async (data: RecipeFormData) => {
     if (ingredients.length === 0) {
-      alert('Lägg till minst en ingrediens');
+      Alert.alert('Error', 'Lägg till minst en ingrediens');
       return;
     }
 
     if (instructions.length === 0) {
-      alert('Lägg till minst en instruktion');
+      Alert.alert('Error', 'Lägg till minst en instruktion');
       return;
     }
 
     try {
-      setLoading(true);
-
-      // Map temp ingredients to proper format
-      const formattedIngredients = ingredients.map((ing, index) => ({
-        id: `ing-${index}`,
-        name: ing.name,
-        amount: ing.amount || 0,
-        unit: ing.unit,
-      }));
-
-      // Create recipe
-      const recipe = await addRecipe({
+      setSaving(true);
+      await updateRecipe(recipeId, {
         title: data.title,
-        description: data.description || '',
+        description: data.description,
         cookTime: data.cookTime,
         servings: data.servings,
-        ingredients: formattedIngredients,
-        instructions: instructions.map((i) => i.text),
-        rating: 0,
-        reviews: [],
       });
-
-      alert('Receptet tillades!');
-      navigation.navigate('RecipeDetail', { recipeId: recipe.id });
+      Alert.alert('Success', 'Receptet uppdaterades!');
+      navigation.goBack();
     } catch (error) {
-      console.error('Error adding recipe:', error);
-      alert('Error när receptet skulle läggas till');
+      console.error('Error updating recipe:', error);
+      Alert.alert('Error', 'Kunde inte uppdatera receptet');
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
+
+  const handleDelete = () => {
+    Alert.alert(
+      'Ta bort recept',
+      'Är du säker på att du vill ta bort detta recept? Det kan inte ångras.',
+      [
+        { text: 'Avbryt', onPress: () => {}, style: 'cancel' },
+        {
+          text: 'Ta bort',
+          onPress: async () => {
+            try {
+              setSaving(true);
+              await deleteRecipe(recipeId);
+              Alert.alert('Success', 'Receptet togs bort');
+              navigation.goBack();
+            } catch (error) {
+              console.error('Error deleting recipe:', error);
+              Alert.alert('Error', 'Kunde inte ta bort receptet');
+            } finally {
+              setSaving(false);
+            }
+          },
+          style: 'destructive',
+        },
+      ]
+    );
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.centerContainer}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+      </View>
+    );
+  }
 
   const units = ['g', 'ml', 'msk', 'tsk', 'st', 'dl', 'l'];
 
@@ -153,8 +198,10 @@ const AddRecipeScreen: React.FC<AddRecipeScreenProps> = ({ navigation }) => {
         <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
           <Text style={styles.backButtonText}>←</Text>
         </Pressable>
-        <Text style={styles.headerTitle}>Lägg till recept</Text>
-        <View style={{ width: 40 }} />
+        <Text style={styles.headerTitle}>Redigera recept</Text>
+        <Pressable onPress={handleDelete} style={styles.deleteButton}>
+          <Text style={styles.deleteButtonText}>🗑️</Text>
+        </Pressable>
       </View>
 
       {/* Recipe Title */}
@@ -169,7 +216,7 @@ const AddRecipeScreen: React.FC<AddRecipeScreenProps> = ({ navigation }) => {
               placeholder="T.ex. Spaghetti Carbonara"
               value={value}
               onChangeText={onChange}
-              editable={!loading}
+              editable={!saving}
             />
           )}
         />
@@ -190,7 +237,7 @@ const AddRecipeScreen: React.FC<AddRecipeScreenProps> = ({ navigation }) => {
               onChangeText={onChange}
               multiline
               numberOfLines={3}
-              editable={!loading}
+              editable={!saving}
             />
           )}
         />
@@ -211,7 +258,7 @@ const AddRecipeScreen: React.FC<AddRecipeScreenProps> = ({ navigation }) => {
                   keyboardType="number-pad"
                   value={value.toString()}
                   onChangeText={(text) => onChange(parseInt(text) || 0)}
-                  editable={!loading}
+                  editable={!saving}
                 />
               )}
             />
@@ -230,7 +277,7 @@ const AddRecipeScreen: React.FC<AddRecipeScreenProps> = ({ navigation }) => {
                   keyboardType="number-pad"
                   value={value.toString()}
                   onChangeText={(text) => onChange(parseInt(text) || 0)}
-                  editable={!loading}
+                  editable={!saving}
                 />
               )}
             />
@@ -246,7 +293,7 @@ const AddRecipeScreen: React.FC<AddRecipeScreenProps> = ({ navigation }) => {
         {ingredients.length > 0 && (
           <FlatList
             data={ingredients}
-            keyExtractor={(item) => item.tempId}
+            keyExtractor={(item) => item.id}
             scrollEnabled={false}
             renderItem={({ item }) => (
               <View style={styles.listItem}>
@@ -254,7 +301,7 @@ const AddRecipeScreen: React.FC<AddRecipeScreenProps> = ({ navigation }) => {
                   <Text style={styles.ingredientName}>{item.name}</Text>
                   {item.amount && <Text style={styles.ingredientAmount}>{item.amount} {item.unit}</Text>}
                 </View>
-                <Pressable onPress={() => removeIngredient(item.tempId)} style={styles.deleteButton}>
+                <Pressable onPress={() => removeIngredient(item.id)} style={styles.deleteButton}>
                   <Text style={styles.deleteButtonText}>✕</Text>
                 </Pressable>
               </View>
@@ -269,7 +316,7 @@ const AddRecipeScreen: React.FC<AddRecipeScreenProps> = ({ navigation }) => {
             placeholder="Ingrediens namn"
             value={newIngredient.name}
             onChangeText={(text) => setNewIngredient({ ...newIngredient, name: text })}
-            editable={!loading}
+            editable={!saving}
           />
           <TextInput
             style={[styles.input, styles.amountInput]}
@@ -277,7 +324,7 @@ const AddRecipeScreen: React.FC<AddRecipeScreenProps> = ({ navigation }) => {
             keyboardType="decimal-pad"
             value={newIngredient.amount}
             onChangeText={(text) => setNewIngredient({ ...newIngredient, amount: text })}
-            editable={!loading}
+            editable={!saving}
           />
           <View style={styles.unitPicker}>
             {units.map((unit) => (
@@ -332,7 +379,7 @@ const AddRecipeScreen: React.FC<AddRecipeScreenProps> = ({ navigation }) => {
             onChangeText={setNewInstruction}
             multiline
             numberOfLines={2}
-            editable={!loading}
+            editable={!saving}
           />
           <Pressable onPress={addInstruction} style={styles.addButton} disabled={!newInstruction.trim()}>
             <Text style={styles.addButtonText}>+ Lägg till steg</Text>
@@ -344,12 +391,12 @@ const AddRecipeScreen: React.FC<AddRecipeScreenProps> = ({ navigation }) => {
       <Pressable
         onPress={handleSubmit(onSubmit)}
         style={({ pressed }) => [styles.submitButton, pressed && { opacity: 0.8 }]}
-        disabled={loading}
+        disabled={saving}
       >
-        {loading ? (
+        {saving ? (
           <ActivityIndicator color="#FFFFFF" />
         ) : (
-          <Text style={styles.submitButtonText}>Spara recept</Text>
+          <Text style={styles.submitButtonText}>Spara ändringar</Text>
         )}
       </Pressable>
 
@@ -362,6 +409,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
+  },
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   header: {
     flexDirection: 'row',
@@ -381,6 +433,15 @@ const styles = StyleSheet.create({
   backButtonText: {
     fontSize: 24,
     color: COLORS.text_primary,
+  },
+  deleteButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  deleteButtonText: {
+    fontSize: 20,
   },
   headerTitle: {
     ...TYPOGRAPHY.title_large,
@@ -501,18 +562,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
   },
-  deleteButton: {
-    width: 32,
-    height: 32,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: SPACING.md,
-  },
-  deleteButtonText: {
-    color: COLORS.error,
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
   instructionInput: {
     minHeight: 60,
     textAlignVertical: 'top',
@@ -543,4 +592,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default AddRecipeScreen;
+export default EditRecipeScreen;

@@ -15,8 +15,8 @@ import { getRecipeById, toggleFavorite } from '../database/recipes.db';
 import { SPACING, COLORS, TYPOGRAPHY } from '../theme/constants';
 
 type RootStackParamList = {
-  Home: undefined;
   RecipeDetail: { recipeId: string };
+  EditRecipe: { recipeId: string };
 };
 
 type RecipeDetailScreenProps = {
@@ -77,12 +77,28 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ navigation, rou
     <ScrollView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
+        <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
+          <Text style={styles.backIcon}>←</Text>
+        </Pressable>
         <Text style={styles.title}>{recipe.title}</Text>
+        <Pressable
+          onPress={() => navigation.navigate('EditRecipe', { recipeId })}
+          style={styles.editButton}
+        >
+          <Text style={styles.editIcon}>✏️</Text>
+        </Pressable>
+      </View>
+
+      {/* Favorite button inline */}
+      <View style={styles.headerActions}>
         <Pressable
           onPress={handleToggleFavorite}
           style={({ pressed }) => [styles.favoriteButton, pressed && { opacity: 0.7 }]}
         >
           <Text style={styles.favoriteIcon}>{isFavorite ? '❤️' : '🤍'}</Text>
+          <Text style={styles.favoriteText}>
+            {isFavorite ? 'Borttagen från favoriter' : 'Lägg till i favoriter'}
+          </Text>
         </Pressable>
       </View>
 
@@ -197,9 +213,31 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    padding: SPACING.lg,
-    paddingBottom: SPACING.md,
+    alignItems: 'center',
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+    gap: SPACING.md,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  backIcon: {
+    fontSize: 20,
+    color: COLORS.text_primary,
+  },
+  editButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  editIcon: {
+    fontSize: 20,
   },
   title: {
     ...TYPOGRAPHY.headline_medium,
@@ -207,11 +245,25 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: SPACING.md,
   },
+  headerActions: {
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    backgroundColor: COLORS.surface_variant,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
   favoriteButton: {
-    padding: SPACING.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    paddingVertical: SPACING.sm,
   },
   favoriteIcon: {
-    fontSize: 24,
+    fontSize: 20,
+  },
+  favoriteText: {
+    color: COLORS.text_secondary,
+    fontSize: 12,
   },
   infoSection: {
     flexDirection: 'row',
