@@ -1,6 +1,6 @@
 import { queryAsync, executeAsync } from './db';
 import { Recipe, Ingredient, Review } from '../types/recipe';
-import { v4 as uuidv4 } from 'react-native-uuid';
+import uuid from 'react-native-uuid';
 
 // Get all recipes
 export const getAllRecipes = async (): Promise<Recipe[]> => {
@@ -77,7 +77,7 @@ export const isRecipeFavorite = async (recipeId: string): Promise<boolean> => {
 
 // Add recipe
 export const addRecipe = async (recipe: Omit<Recipe, 'id' | 'createdAt' | 'updatedAt' | 'isFavorite'>): Promise<Recipe> => {
-  const id = uuidv4().toString();
+  const id = uuid.v4().toString();
 
   await executeAsync(
     `INSERT INTO recipes (id, title, description, image_url, cook_time, servings, difficulty, cuisine, dietary_tags, rating)
@@ -98,7 +98,7 @@ export const addRecipe = async (recipe: Omit<Recipe, 'id' | 'createdAt' | 'updat
 
   // Add ingredients
   for (const ingredient of recipe.ingredients) {
-    const ingredientId = uuidv4().toString();
+    const ingredientId = uuid.v4().toString();
     await executeAsync(
       `INSERT INTO ingredients (id, recipe_id, name, amount, unit)
        VALUES (?, ?, ?, ?, ?)`,
@@ -108,7 +108,7 @@ export const addRecipe = async (recipe: Omit<Recipe, 'id' | 'createdAt' | 'updat
 
   // Add instructions
   for (let i = 0; i < recipe.instructions.length; i++) {
-    const instructionId = uuidv4().toString();
+    const instructionId = uuid.v4().toString();
     await executeAsync(
       `INSERT INTO instructions (id, recipe_id, step_number, instruction)
        VALUES (?, ?, ?, ?)`,
@@ -178,6 +178,52 @@ export const getFavoriteRecipes = async (): Promise<Recipe[]> => {
   );
 
   return recipes.filter((r) => r !== null);
+};
+
+// Add review
+export const addReview = async (
+  recipeId: string,
+  rating: number,
+  comment: string
+): Promise<void> => {
+  if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+    throw new Error('Rating must be an integer between 1 and 5');
+  }
+
+  const id = uuid.v4().toString();
+
+  await executeAsync(
+    `INSERT INTO reviews (id, recipe_id, rating, comment)
+     VALUES (?, ?, ?, ?)`,
+    [id, recipeId, rating, comment]
+  );
+};
+
+// Get average rating for recipe
+export const getAverageRating = async (recipeId: string): Promise<number> => {
+  const result = await queryAsync(
+    `SELECT AVG(rating) as avg_rating FROM reviews WHERE recipe_id = ?`,
+    [recipeId]
+  );
+
+  const averageRating = Number(result[0]?.avg_rating);
+  return Number.isFinite(averageRating) ? averageRating : 0;
+};
+
+// Get review count for recipe
+export const getReviewCount = async (recipeId: string): Promise<number> => {
+  const result = await queryAsync(
+    `SELECT COUNT(*) as count FROM reviews WHERE recipe_id = ?`,
+    [recipeId]
+  );
+
+  const reviewCount = Number(result[0]?.count);
+  return Number.isFinite(reviewCount) ? reviewCount : 0;
+};
+
+// Delete review
+export const deleteReview = async (reviewId: string): Promise<void> => {
+  await executeAsync(`DELETE FROM reviews WHERE id = ?`, [reviewId]);
 };
 
 // Search by ingredients
