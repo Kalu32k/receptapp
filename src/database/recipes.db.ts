@@ -272,3 +272,65 @@ export const getDifficultyLevels = async (): Promise<('easy' | 'medium' | 'hard'
     .map((row) => row.difficulty as string)
     .filter((d): d is 'easy' | 'medium' | 'hard' => ['easy', 'medium', 'hard'].includes(d));
 };
+
+// Shopping List functions
+export interface ShoppingItem {
+  id: string;
+  ingredientName: string;
+  amount: number;
+  unit: string;
+  checked: boolean;
+}
+
+// Create shopping list from recipe
+export const createShoppingListFromRecipe = async (recipeId: string): Promise<ShoppingItem[]> => {
+  const ingredients = await getRecipeIngredients(recipeId);
+
+  const shoppingItems: ShoppingItem[] = ingredients.map((ing) => ({
+    id: uuidv4().toString(),
+    ingredientName: ing.name,
+    amount: ing.amount,
+    unit: ing.unit,
+    checked: false,
+  }));
+
+  return shoppingItems;
+};
+
+// Combine multiple shopping lists
+export const combineShoppingLists = (
+  ...lists: ShoppingItem[][]
+): ShoppingItem[] => {
+  const combined = new Map<string, ShoppingItem>();
+
+  lists.forEach((list) => {
+    list.forEach((item) => {
+      const key = JSON.stringify([
+        item.ingredientName.trim().toLowerCase(),
+        item.unit.trim().toLowerCase(),
+      ]);
+      const existing = combined.get(key);
+      if (existing) {
+        existing.amount += item.amount;
+        existing.checked = existing.checked && item.checked;
+      } else {
+        combined.set(key, { ...item });
+      }
+    });
+  });
+
+  return [...combined.values()];
+};
+
+// Format shopping list for export
+export const formatShoppingListForExport = (items: ShoppingItem[]): string => {
+  const header = '🛒 INKÖPSLISTA\n\n';
+  const itemsText = items
+    .map((item) =>
+      `${item.checked ? '✓' : '☐'} ${item.ingredientName} ${item.amount} ${item.unit}`
+    )
+    .join('\n');
+  const footer = `\n\nGenererad från ReceptApp 📱`;
+
+  return header + itemsText + footer;
+};
