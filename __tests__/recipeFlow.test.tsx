@@ -10,6 +10,7 @@ import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import AddRecipeScreen from '../src/screens/AddRecipeScreen';
 import EditRecipeScreen from '../src/screens/EditRecipeScreen';
 import { Recipe } from '../src/types/recipe';
+import { resetCounter as resetUuidCounter } from 'react-native-uuid';
 
 // ─── Mock database ───────────────────────────────────────────────────────────
 
@@ -54,9 +55,17 @@ const sampleRecipe: Recipe = {
 // ─── Create flow ─────────────────────────────────────────────────────────────
 
 describe('Create recipe flow', () => {
+  let originalAlert: typeof global.alert;
+
   beforeEach(() => {
     jest.clearAllMocks();
+    resetUuidCounter();
+    originalAlert = global.alert;
     (mockAddRecipe as jest.Mock).mockResolvedValue({ ...sampleRecipe, id: 'new-id' });
+  });
+
+  afterEach(() => {
+    global.alert = originalAlert;
   });
 
   it('renders the add recipe form', () => {
@@ -85,7 +94,6 @@ describe('Create recipe flow', () => {
 
   it('creates a recipe and navigates to detail on success', async () => {
     const nav = makeNavigation();
-    const originalAlert = global.alert;
     global.alert = jest.fn();
 
     const { getByPlaceholderText, getByText } = render(
@@ -118,7 +126,6 @@ describe('Create recipe flow', () => {
     });
 
     expect(nav.navigate).toHaveBeenCalledWith('RecipeDetail', { recipeId: 'new-id' });
-    global.alert = originalAlert;
   });
 });
 
@@ -127,8 +134,13 @@ describe('Create recipe flow', () => {
 describe('Delete recipe flow', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    resetUuidCounter();
     (mockGetRecipeById as jest.Mock).mockResolvedValue(sampleRecipe);
     (mockDeleteRecipe as jest.Mock).mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   const makeRoute = (recipeId: string) => ({
